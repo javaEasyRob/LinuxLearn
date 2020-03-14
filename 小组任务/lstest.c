@@ -24,6 +24,7 @@ bool isDir(char*fileName)
 }
 int main()
 {
+    printf("%d",strcmp("aaa","c"));
     char name[10]="./test";
     if(isDir(name)){
         // printf("yes");
