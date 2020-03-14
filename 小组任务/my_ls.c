@@ -33,6 +33,7 @@ int randPartition(char* A[],int left, int right,int mode);
 void quicksort(char* A[], int left, int right,int mode);
 bool Lstat(char*fileName,struct stat *pbuf);
 char*getLast(char *name);
+long getSize(char*name);
 bool isDir(char*fileName);
 void analysisArg(char(*arg)[ARGNUM],int argcount,int *mode);
 void analysisFileStat(char*fileName,int arg);
@@ -40,6 +41,26 @@ void followTrace(char*dirName,int arg);
 void printFile(char*name,int arg);
 void transfer(char**fileNameList,int filenum,int arg);
 
+long getSize(char*name)
+{
+    long size;
+    struct stat buf; 
+    long vsize;
+    if(Lstat(name,&buf)){
+        vsize=buf.st_size/BLOCKSIZE;//11
+        if(vsize<4){
+            size=4;
+        }else{
+            if(vsize%4==0&&vsize*BLOCKSIZE==buf.st_size){
+                size=vsize;
+            }else{
+                    size=4-vsize%4+vsize;
+            }
+        }
+        return size;
+    }
+    return -1;
+}
 int cmp ( char *a , char *b ,int mode) 
 { 
     if(mode&ARG_T){
@@ -171,7 +192,6 @@ void printFile(char*name,int arg)
     //     // printf("return\n");
     //     return;
     // }
-    
     if((!(arg&ARG_A_SML))){
         if(!(arg&ARG_A_BIG)){
             if(lastName[0]=='.'){
@@ -183,25 +203,10 @@ void printFile(char*name,int arg)
         }
 
     }
+    
     if(arg&ARG_S){
-        struct stat buf; 
-        if(Lstat(name,&buf)){
-            long vsize=buf.st_size/BLOCKSIZE;
-            long size;
-            if(vsize<4){
-                size=4;
-            }else{
-                if(vsize%4==0&&vsize*BLOCKSIZE==buf.st_size){
-                    size=vsize;
-                }else{
-                    if(vsize%4!=0)
-                        size=vsize%4+vsize;
-                    else
-                        size=vsize%4+vsize+4;
-                }
-            }
+        long size=getSize(name);
         printf("%-4ld ",size);
-        }
     }
     if(arg&ARG_I){
         struct stat buf;
@@ -351,9 +356,14 @@ void transfer(char**fileNameList,int filenum,int arg)
     // {
     //     printf("%s\n",fileNameList[i]);
     // }
-    
     quicksort(fileNameList,0,filenum-1,arg);
     // qsort(fileNameList,filenum,sizeof(fileNameList[0]),cmp);
+    long count=0;
+    for (int i = 0; i < filenum; i++){
+        count+=getSize(fileNameList[i]);
+    }
+    printf("总用量:%ld\n",count);
+    
     for(int i=0;i<filenum;i++){    
         printFile(fileNameList[i],arg);  
         // sleep(1);      
