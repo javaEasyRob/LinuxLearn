@@ -6,6 +6,7 @@
         "signal.h": "c",
         "string.h": "c",
         "socket.h": "c",
-        "in.h": "c"
+        "in.h": "c",
+        "stat.h": "c"
     }
 }
