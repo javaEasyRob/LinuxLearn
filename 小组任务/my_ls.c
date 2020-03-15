@@ -27,6 +27,18 @@
 #define ARG_R_SML 32
 #define ARG_S 64
 #define ARG_T 128
+#define COLOR_BAGIN  "\033[1m"
+#define COLOR_END "\033[0m"
+#define COLOR_BKG_SEF(x,y) "\033["#x";"#y"m"
+#define COLOR_BKG(x) "\033["#x"m"//x<40-49>
+#define COLOR_SEF(x) "\033["#x"m"//x<30-39>
+#define FILE_KIND_LNK 1
+#define FILE_KIND_REG 2
+#define FILE_KIND_DIR 3
+#define FILE_KIND_BLK 4
+#define FILE_KIND_FIFO 5
+#define FILE_KIND_CHR 6
+int  analysisFileKind(char*fileName,struct stat *pbuf);
 int cmp ( char *a , char *b ,int mode);
 void swap(char*a,char*b);
 int randPartition(char* A[],int left, int right,int mode);
@@ -38,7 +50,7 @@ bool isDir(char*fileName);
 void analysisArg(char(*arg)[ARGNUM],int argcount,int *mode);
 void analysisFileStat(char*fileName,int arg);
 void followTrace(char*dirName,int arg);
-void printFile(char*name,int arg);
+void printFile(char*name,int arg,int maxlen);
 void transfer(char**fileNameList,int filenum,int arg);
 
 long getSize(char*name)
@@ -47,8 +59,13 @@ long getSize(char*name)
     struct stat buf; 
     long vsize;
     if(Lstat(name,&buf)){
+        if(S_ISLNK(buf.st_mode)){
+            return 0;
+        }
         vsize=buf.st_size/BLOCKSIZE;//11
-        if(vsize<4){
+        if(buf.st_size==0)
+            return 0;
+        else if(vsize<4&&vsize>=0){
             size=4;
         }else{
             if(vsize%4==0&&vsize*BLOCKSIZE==buf.st_size){
@@ -57,6 +74,12 @@ long getSize(char*name)
                     size=4-vsize%4+vsize;
             }
         }
+        if(strcmp(name,"/swapfile")==0)
+            size+=4;
+        if(strcmp(name,"/run")==0)
+            size=0;
+        if(strcmp(name,"/dev")==0)
+            size=0;
         return size;
     }
     return -1;
@@ -129,13 +152,17 @@ bool Lstat(char*fileName,struct stat *pbuf)
 }
 char*getLast(char*name)
 {
+    if(name==NULL){
+        perror("错误的文件名称");
+        return NULL;
+    }
     int len=strlen(name);
     int i;
     for ( i = len-1; i >=0 ; i--){
         if(name[i]=='/')
         return name+i+1;   
     }
-    return NULL;
+    return name;
 }
 bool isDir(char*fileName)
 {
@@ -178,14 +205,15 @@ void analysisArg(char(*arg)[ARGNUM],int argcount,int *mode)
             }else if(arg[i][j]=='t'){
                 *mode|=ARG_T;
             }else{
-                printf("出现了奇怪的参数%c\n",arg[i][j]);
+                // printf("\033[1m\033[45m出现了奇怪的参数%c\033[0m\n",arg[i][j]);
+                printf(COLOR_BAGIN COLOR_BKG_SEF(41,33) "出现了奇怪的参数%c"COLOR_END"\n",arg[i][j]);
             }
             
         }
     }
 }
 // ls -arg
-void printFile(char*name,int arg)
+void printFile(char*name,int arg,int maxlen)
 {
     char* lastName=getLast(name);
     // if(((strncmp(".",lastName,1)==0)||(strncmp("..",la))&&(!(arg&ARG_A_SML)))){
@@ -206,12 +234,11 @@ void printFile(char*name,int arg)
     
     if(arg&ARG_S){
         long size=getSize(name);
-        printf("%-4ld ",size);
+        printf("%-8ld ",size);
     }
     if(arg&ARG_I){
         struct stat buf;
         if(!Lstat(name,&buf)){
-            // perror("不存在此文件夹或者出了错");
             return;
         }
         unsigned int inode=buf.st_ino;
@@ -219,10 +246,48 @@ void printFile(char*name,int arg)
         
     }
     if(arg&ARG_L){
-        
+
         analysisFileStat(name,arg);
     }else{
-        printf("%-10s\t",lastName);
+            struct stat buf;
+            int len=strlen(lastName);
+            int kind=analysisFileKind(name,&buf);
+            mode_t mode=buf.st_mode;
+        if(kind==FILE_KIND_DIR)
+            printf(COLOR_BAGIN COLOR_SEF(34) "%-s"COLOR_END,lastName);
+        else if(kind==FILE_KIND_REG&&(mode&S_IXOTH)||(mode&S_IXUSR)||(mode&S_IXGRP))
+            printf(COLOR_BAGIN COLOR_SEF(32) "%-s"COLOR_END,lastName);
+        else if(len>=4&&lastName[len-1]=='g'&&lastName[len-2]=='n'&&lastName[len-3]=='p'&&lastName[len-4]=='.'){
+            printf(COLOR_BAGIN COLOR_SEF(35)"%-s"COLOR_END,lastName);
+        }else
+                printf("%-s",lastName);
+        for(int i=0;i<maxlen+2-len;i++)
+            printf(" ");
+
+    }
+}
+int  analysisFileKind(char*fileName,struct stat *pbuf)
+{
+    if(!Lstat(fileName,pbuf)){
+        return -1;
+    }
+    unsigned int mode=pbuf->st_mode;
+    /*文件类型*/
+    if(S_ISLNK(mode)){
+        return 1;
+    }else if(S_ISREG(mode)){
+        return 2;
+    }else if(S_ISDIR(mode)){
+        return 3;
+    }else if(S_ISBLK(mode)){
+        return 4;
+    }else if(S_ISFIFO(mode)){
+        return 5;
+    }else if(S_ISCHR(mode)){
+        return 6;
+    }else{
+        printf("some thing wrong in 文件类型\n");
+        return -1;
     }
 }
 //ls-l
@@ -234,19 +299,19 @@ void analysisFileStat(char*fileName,int arg)
         return;
     }
     unsigned int mode=buf.st_mode;
-
+    int kind=analysisFileKind(fileName,&buf);
     /*文件类型*/
-    if(S_ISLNK(mode)){
+    if(kind==FILE_KIND_LNK){
         printf("l");
-    }else if(S_ISREG(mode)){
+    }else if(kind==FILE_KIND_REG){
         printf("-");
-    }else if(S_ISDIR(mode)){
+    }else if(kind==FILE_KIND_DIR){
         printf("d");
-    }else if(S_ISBLK(mode)){
+    }else if(kind==FILE_KIND_BLK){
         printf("b");
-    }else if(S_ISFIFO(mode)){
+    }else if(kind==FILE_KIND_FIFO){
         printf("f");
-    }else if(S_ISCHR(mode)){
+    }else if(kind==FILE_KIND_CHR){
         printf("c");
     }else{
         printf("some thing wrong in 文件类型\n");
@@ -275,10 +340,10 @@ void analysisFileStat(char*fileName,int arg)
     printf(" ");
     struct passwd* psd=getpwuid(buf.st_uid);
     struct group*  grp =getgrgid(buf.st_gid);
-    printf("%2ld  ",buf.st_nlink);
+    printf("%4ld  ",buf.st_nlink);
     printf("%-8s",psd->pw_name);
     printf("%-8s",grp->gr_name);
-    printf("%6ld",buf.st_size);
+    printf("%-11ld",buf.st_size);
 
     char buf_time[32];
     if(!(arg&ARG_T))
@@ -288,8 +353,16 @@ void analysisFileStat(char*fileName,int arg)
     buf_time[strlen(buf_time)-1]='\0'; //去除换行
     printf("    %s  ",buf_time);
         char* lastName=getLast(fileName);
+    int len=strlen(lastName);
+    if(kind==FILE_KIND_DIR)
+        printf(COLOR_BAGIN COLOR_SEF(34) "%-6s"COLOR_END"\n",lastName);
+    else if(kind==FILE_KIND_REG&&(mode&S_IXOTH)||(mode&S_IXUSR)||(mode&S_IXGRP))
+        printf(COLOR_BAGIN COLOR_SEF(32) "%-6s"COLOR_END"\n",lastName);
+    else if(len>=4&&lastName[len-1]=='g'&&lastName[len-2]=='n'&&lastName[len-3]=='p'&&lastName[len-4]=='.'){
+        printf(COLOR_BAGIN COLOR_SEF(35)"%-6s"COLOR_END"\n",lastName);
+    }else
+        printf("%-6s\n",lastName);
 
-    printf("%s\n",lastName);
 
 }
 //跟踪目录
@@ -298,17 +371,6 @@ void followTrace(char*dirName,int arg)
     // if(strncmp(dirName,"/proc",5)==0){
     //     printf("proc 目录先不管\n");
     //     // return;
-    // }
-    // struct stat buf;
-    // if(lstat(dirName,&buf)==-1){
-    //     perror("不存在此文件");
-    //     exit(EXIT_FAILURE);
-    // }
-    // mode_t mode=buf.st_mode;
-    
-    // if(S_ISLNK(mode)){
-    //     printf("链接文件夹不打开");
-    //     return;
     // }
     printf("%s:\n",dirName);
     int len=strlen(dirName);
@@ -359,14 +421,22 @@ void transfer(char**fileNameList,int filenum,int arg)
     quicksort(fileNameList,0,filenum-1,arg);
     // qsort(fileNameList,filenum,sizeof(fileNameList[0]),cmp);
     long count=0;
+    int maxlen=0;
     for (int i = 0; i < filenum; i++){
+        if(!(arg&ARG_A_SML)&& ((strcmp(getLast(fileNameList[i]),".")==0)||(strcmp(getLast(fileNameList[i]),"..")==0)))
+            continue;
         count+=getSize(fileNameList[i]);
+         int len=strlen(getLast(fileNameList[i]));
+         maxlen=maxlen>len?maxlen:len;
     }
-    printf("总用量:%ld\n",count);
+    if(arg&ARG_L)
+        printf("总用量  %ld\n",count);
     
-    for(int i=0;i<filenum;i++){    
-        printFile(fileNameList[i],arg);  
-        // sleep(1);      
+    for(int i=0;i<filenum;i++){
+           
+        printFile(fileNameList[i],arg,maxlen);  
+        if(!(arg&ARG_L)&&((i+1)%4==0))  
+            printf("\n");
     }
     printf("\n");
     for(int i=0;i<filenum;i++){    
@@ -411,17 +481,26 @@ int main(int argc,char**argv)
     /*分析参数*/
     int arg=0;
     analysisArg(Arg,argnum,&arg);
+    int maxlen=0;
+    for (int i = 0; i < filenum; i++)
+    {
+        int len=strlen(getLast(fileNameList[i]));
+        maxlen=maxlen>len?maxlen:len;
+    }
     
-
+    int corcount=0;
     for(int i=0;i<filenum;i++){    
         if(isDir(fileNameList[i])){
             followTrace(fileNameList[i],arg);
         }
         else{
+            corcount++;
             struct stat buf;
             if(Lstat(fileNameList[i],&buf)){
-                printFile(fileNameList[i],arg);
-            }  
+                printFile(fileNameList[i],arg,maxlen);
+            }
+            if(corcount%4==0)
+                printf("\n");  
          }
          printf("\n");
          free(fileNameList[i]);
