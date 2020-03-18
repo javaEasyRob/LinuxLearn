@@ -1,3 +1,4 @@
+//https://blog.csdn.net/adlatereturn/article/details/104721644
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -68,6 +69,7 @@ int main()
     ret=pthread_create(&pid,NULL,produser,NULL);
     if(ret!=0)
         err_thread(ret,"pthread_create produser error ");
+    //pthread_create函数执行成功返回0
     for (int i = 0; i < 3; i++)
     {
         ret=pthread_create(&pid,NULL,consumer,NULL);
@@ -75,7 +77,7 @@ int main()
             err_thread(ret,"pthread_create cosumer error ");
     }
         
-
+        //回收线程资源
         pthread_join(pid,NULL);
         pthread_join(cid,NULL);
     return 0;

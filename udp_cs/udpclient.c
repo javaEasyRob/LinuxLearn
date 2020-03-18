@@ -15,7 +15,7 @@
 #include<arpa/inet.h>
 #include<string.h>
 
-#define NAMESIZE 1024
+#define NAMESIZE 10
 #define BUFSIZE 1024
 char*s_gets(char*s,int n)
 {   char*find;
@@ -32,45 +32,44 @@ char*s_gets(char*s,int n)
     }
     return ret_val;
 }
-// typedef struct stu{
-//     int id;
-//     char name[NAMESIZE];
-// }Stu;
+typedef struct stu{
+    int id;
+    char name[NAMESIZE];
+}Stu;
 int main()
 {
-    // Stu stu;
+    Stu stu;
     char buf[BUFSIZE];
-    int cfd=socket(AF_INET,SOCK_STREAM,0);
+    int sockfd=socket(AF_INET,SOCK_DGRAM,0);
     struct sockaddr_in addr;
-    addr.sin_addr.s_addr=htonl(INADDR_ANY);
+    // addr.sin_addr.s_addr=htonl(INADDR_ANY);
     addr.sin_family=AF_INET;
     addr.sin_port=htons(8887);
     inet_pton(AF_INET,"127.0.0.1",&addr.sin_addr.s_addr);
     
-    while((connect(cfd,(struct sockaddr*)&addr,sizeof(addr)))==-1){
-        // fprintf(stderr,"connect err");
-        // exit(1);
-        printf("connecting ...\n");
-        sleep(1);
-    }
+    // while((connect(cfd,(struct sockaddr*)&addr,sizeof(addr)))==-1){
+    //     // fprintf(stderr,"connect err");
+    //     // exit(1);
+    //     printf("connecting ...\n");
+    //     sleep(1);
+    // }
     while(1){   
-        char name[NAMESIZE];
-        int id;
+        // char name[NAMESIZE];
+        printf("id:");
+        scanf("%d",&stu.id);
+        while (getchar()!='\n')
+            continue;
         printf("name:");
-        // scanf("%s",name);
-        // while (getchar()!='\n')
-        //     continue;
-        // printf("name:");
-        s_gets(name,NAMESIZE);
+        s_gets(stu.name,NAMESIZE);
 
         
-        
-        write(cfd,name,sizeof(name));
-        printf("Client:send a name:%s\n",name);
-        read(cfd,&buf,sizeof(buf));
+        int addr_len=sizeof(addr);
+        printf("Client:send a Stu\n");
+        sendto(sockfd,&stu,sizeof(stu),0,(struct sockaddr*)&addr,addr_len);
+        recvfrom(sockfd,&buf,sizeof(buf),0,(struct sockaddr*)&addr,&addr_len);
         printf("Server:%s\n",buf);
         sleep(1);
     }
-    close(cfd);
+    close(sockfd);
 
 }

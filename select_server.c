@@ -1,3 +1,4 @@
+//OK
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -11,7 +12,6 @@
 #include<semaphore.h>
 #include <netinet/in.h>
 #include<sys/socket.h>
-// #include<netinet/in.h>
 #include<arpa/inet.h>
 #include<sys/select.h>
 #define NAMESIZE 10
@@ -38,12 +38,10 @@ int main()
     while(1)
     {
         temp=reads;
+        int ret;
         puts("select");
-        int ret=select(maxfd+1,&temp,NULL,NULL,NULL);//阻塞,既处理read也处理accept
-        printf("%d\n",ret);
-        if(ret==-1){
-            perror("something wrong");
-        }
+        while((ret=select(maxfd+1,&temp,NULL,NULL,NULL))==-1&&errno==EINTR);//阻塞,既处理read也处理accept
+        printf("ret=%d\n",ret);
         int len=sizeof(client_addr);
         if(FD_ISSET(sfd,&temp))
         {
@@ -63,8 +61,10 @@ int main()
                     continue;
                 if(readlen==0)
                 {
+                    puts("客户退出");
                     close(i);
                     FD_CLR(i,&reads);
+                    continue;//这步需要，不然下面都会再打印
                 }
                 char clientip[BUFSIZ];
                 printf("Client:  ip:%s\tport :%d\t",

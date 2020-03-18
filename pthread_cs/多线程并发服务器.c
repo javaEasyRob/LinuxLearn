@@ -1,3 +1,5 @@
+//have check
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -25,6 +27,9 @@ typedef struct s_info{
     struct sockaddr_in client_addr;
     int connfd;
 }s_info;
+//一个拥有地址结构和通信套接字描述符的结构体，用来从arg中分离出参数
+
+
 void*func(void*arg)
 {   
     struct s_info* info=(s_info*)arg;
