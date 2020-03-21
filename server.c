@@ -26,7 +26,6 @@ int main()
     struct sockaddr_in addr,client_addr;
     addr.sin_port=htons(8888);
     addr.sin_family=AF_INET;
-    
     addr.sin_addr.s_addr=htonl(INADDR_ANY);
     bind(sfd,(struct sockaddr*)&addr,sizeof(addr));
     listen(sfd,128);
