@@ -47,7 +47,8 @@ int main()
         if(choice==1)  
         {
             char fileName[256];
-            sprintf(fileName,"sad""%d"".png",rand()%65536+1);
+            // sprintf(fileName,"sad""%d"".png",rand()%65536+1);
+            sprintf(fileName,"sad""%d"".mkv",rand()%65536+1);
             unlink(fileName);
             int fd=open(fileName,O_CREAT|O_TRUNC|O_RDWR,0644);
             if(fd==-1){
@@ -70,6 +71,7 @@ int main()
                     write(cfd,str,sizeof(str));
                 }else{
                     perror("some thing wrong");
+                    exit(EXIT_FAILURE);                
                 }
             }
              if(getlen==0){
@@ -77,6 +79,9 @@ int main()
                     close(cfd);
                     close(fd);
             }else{
+                // perror("some thing wrong");   
+                puts("传输成功啦!");
+                // exit(EXIT_SUCCESS);
 
             }
         }                   

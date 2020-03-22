@@ -55,7 +55,7 @@ int main()
     listen(lfd,128);
 
     int  client_addr_len=sizeof(client_addr);//这不能是一个随机值，而必须是传入传出参数
-    int cfd=accept(lfd,(struct sockaddr*)&client_addr,&client_addr_len);
+    int cfd=Accept(lfd,(struct sockaddr*)&client_addr,&client_addr_len);
     char ip_buf[BUFSIZ];
     printf("ip:%s port:%d\n",inet_ntop(AF_INET,&client_addr.sin_addr.s_addr,ip_buf,sizeof(ip_buf)),ntohs(client_addr.sin_port));
     char str[BUFSIZ];

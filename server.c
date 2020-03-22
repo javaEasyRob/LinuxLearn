@@ -11,7 +11,6 @@
 #include<semaphore.h>
 #include <netinet/in.h>
 #include<sys/socket.h>
-// #include<netinet/in.h>
 #include<arpa/inet.h>
 #define NAMESIZE 10
 typedef struct stu{

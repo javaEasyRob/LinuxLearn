@@ -12,10 +12,8 @@
 #include <netinet/in.h>
 #include<sys/socket.h>
 #include<arpa/inet.h>
-#include<string.h>
-
+#include"../head.h"
 #define NAMESIZE 10
-#define BUFSIZE 1024
 char*s_gets(char*s,int n)
 {   char*find;
     char*ret_val;
@@ -37,37 +35,31 @@ typedef struct stu{
 }Stu;
 int main()
 {
-    Stu stu;
-    char buf[BUFSIZE];
     int cfd=socket(AF_INET,SOCK_STREAM,0);
-    struct sockaddr_in addr;
-    addr.sin_family=AF_INET;
-    addr.sin_port=htons(8888);
-    inet_pton(AF_INET,"127.0.0.1",&addr.sin_addr.s_addr);
-    
-    while((connect(cfd,(struct sockaddr*)&addr,sizeof(addr)))==-1){
-        // fprintf(stderr,"connect err");
-        // exit(1);
-        printf("connecting ...\n");
-        sleep(1);
-    }
-    while(1){   
-        // char name[NAMESIZE];
-        printf("id:");
-        scanf("%d",&stu.id);
-        while (getchar()!='\n')
+    // bind
+    struct sockaddr_in serv_addr;
+    inet_pton(AF_INET,"127.0.0.1",&serv_addr.sin_addr.s_addr);
+    serv_addr.sin_family=AF_INET;
+    serv_addr.sin_port=htons(8888);
+    while(connect(cfd,(struct sockaddr*)&serv_addr,sizeof(serv_addr))==-1) {    
+           puts("等待服务器连接");
+           sleep(1);
             continue;
-        printf("name:");
+        }
+    puts("链接成功");
+    while(1)
+    {
+        Stu stu;
+        stu.id=666;
+        puts("你的名字:");
         s_gets(stu.name,NAMESIZE);
-
+        printf("client:%s,%d\n",stu.name,stu.id);
+        puts("开始传数据啦！！");
+        write(cfd,&stu,sizeof(stu));
+        char serv_msg[BUFSIZ];
+        read(cfd,serv_msg,sizeof(serv_msg));
+        printf("server:%s\n",serv_msg);
         
-        
-        printf("Client:send a Stu\n");
-        write(cfd,&stu,sizeof(Stu));
-        read(cfd,&buf,sizeof(buf));
-        printf("Server:%s\n",buf);
         sleep(1);
     }
-    close(cfd);
-
 }

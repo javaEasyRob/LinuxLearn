@@ -54,9 +54,12 @@ int main()
             continue;
         if(choice==1)  
         {
-                int fd=open("../软链接1.png",O_RDONLY);
+                // int fd=open("../软链接1.png",O_RDONLY);
+                int fd=open("/home/adl/2020-03-19 21-34-38.mkv",O_RDONLY);
+
                 if(fd==-1){
                     perror("open err");
+                        exit(EXIT_FAILURE);
                 }
                 int len=0;    
                 while(1){
@@ -85,9 +88,10 @@ int main()
                         }
                         if(read(cfd,readbuf,sizeof(readbuf)))
                             printf("server :%s\n",readbuf);
-                            sleep(1);
+                            // sleep(1);
                     }else{
                         perror("其他错误?");
+                        exit(EXIT_FAILURE);
                     }
             }   
         }
