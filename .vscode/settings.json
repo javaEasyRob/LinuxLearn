@@ -8,6 +8,9 @@
         "socket.h": "c",
         "in.h": "c",
         "stat.h": "c",
-        "fcntl.h": "c"
+        "fcntl.h": "c",
+        "epoll.h": "c",
+        "select.h": "c",
+        "head.h": "c"
     }
 }

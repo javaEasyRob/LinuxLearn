@@ -27,9 +27,9 @@ int Socket(int domain,int type,int protocol)
     int n=socket(AF_INET,SOCK_STREAM,0);
     if(n==-1){
         sys_err(__func__);
-        return n;
+        // return -1;
     }
-    return 0;
+    return n;
 }
  int Listen(int s, int backlog)
  {
