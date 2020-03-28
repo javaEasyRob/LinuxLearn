@@ -85,16 +85,6 @@ void eventdel(int efd, struct myevent_s *ev)
     epv.data.ptr = ev;
     ev->status = 0;                                             //修改状态
     epoll_ctl(efd, EPOLL_CTL_DEL, ev->fd, &epv);                //从红黑树 efd 上将 ev->fd 摘除
-    // printf("%d delete\n",epv.data.fd);
-    // printf("it's event :%0X\n",epv.events);
-    // struct myevent_s *evv=(struct myevent_s *)epv.data.ptr;
-    
-    // printf("it's status :%0X\n",evv->status);
-    // printf("it's buf :%s\n",evv->buf);
-    // printf("it's event :%d\n",evv->events);
-    // printf("it's fd :%d\n",evv->fd);
-    // printf("it's time:%ld\n",evv->last_active);
-    // printf("it's len :%d\n",evv->len);
     return ;
 }
 

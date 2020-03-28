@@ -17,6 +17,22 @@
 #include<sys/socket.h>
 #include<arpa/inet.h>
 #include<wait.h>
+
+char*s_gets(char*s,int n)
+{   char*find;
+    char*ret_val;
+    ret_val=fgets(s,n,stdin);
+    if(ret_val){
+        find=strchr(s,'\n');
+        if(find){
+            *find='\0';
+        }else{
+            while(getchar()!='\n')
+                continue;
+        }
+    }
+    return ret_val;
+}
 void sys_err(const char*str)
 {
     perror(str);

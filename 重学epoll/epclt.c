@@ -19,22 +19,7 @@
 #define NAMESIZE 10
 #define SERV_PORT 8888
 #define MAXLINE 4096
-#define BUFSIZE 1024
-char*s_gets(char*s,int n)
-{   char*find;
-    char*ret_val;
-    ret_val=fgets(s,n,stdin);
-    if(ret_val){
-        find=strchr(s,'\n');
-        if(find){
-            *find='\0';
-        }else{
-            while(getchar()!='\n')
-                continue;
-        }
-    }
-    return ret_val;
-}
+// #define BUFSIZE 1024
 // typedef struct stu{
 //     int id;
 //     char name[NAMESIZE];
@@ -42,7 +27,7 @@ char*s_gets(char*s,int n)
 int main()
 {
     // Stu stu;
-    char buf[BUFSIZE];
+    char buf[BUFSIZ];
     int cfd=socket(AF_INET,SOCK_STREAM,0);
     struct sockaddr_in addr;
     addr.sin_family=AF_INET;
@@ -68,7 +53,7 @@ int main()
 
         
         // printf("%s--%c%c%c\n",name,name[0],name[1],name[2]);
-        s_gets(buf,BUFSIZE);
+        s_gets(buf,BUFSIZ);
         write(cfd,buf,sizeof(buf));
         read(cfd,buf,sizeof(buf));
         printf("Server:%s\n",buf);
