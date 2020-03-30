@@ -11,6 +11,7 @@
         "fcntl.h": "c",
         "epoll.h": "c",
         "select.h": "c",
-        "head.h": "c"
+        "head.h": "c",
+        "typeinfo": "c"
     }
 }

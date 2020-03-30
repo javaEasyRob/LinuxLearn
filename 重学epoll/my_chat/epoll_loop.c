@@ -11,9 +11,21 @@
 #include<stdbool.h>
 #include <sys/types.h>  
 #include"../head.h"
+#define MSG_EXIT 0
+#define MSG_ACK 1
+#define MSG_CNT  2
+#define MSG_LOGIN 3
+#define PWDSIZE 10
+#define NAMESIZE 10
 #define MAX_EVENTS  1024      //监听上限
 #define SERV_PORT   8887
 int g_efd;
+typedef struct PACK{
+    int msg_kind;
+    char packSender[NAMESIZE];
+    char packRecver[NAMESIZE];
+    char buf[BUFSIZ];
+}PACK;
 //这个结构体最好只放事件的信息
 struct myevent_s{
     int fd;
@@ -24,6 +36,18 @@ struct myevent_s{
 
 }my_events[MAX_EVENTS+1];
 
+typedef struct personinfo{
+    char name[NAMESIZE];
+    char passwd[PWDSIZE];
+    // int cfd;
+}PersonInfo;
+typedef struct Name_fd_map{
+    char name[NAMESIZE];
+    int cfd;
+}Name_fd_map;
+PersonInfo infoList[3]={{"adl","adl"},{"hzn","hzn"},{"sad","sad"}};
+Name_fd_map searchMap[3]={{"adl",-1},{"hzn",-1},{"sad",-1}};
+void servlogin(void*arg);
 void recvdata(void*arg);
 void senddata(void*arg);
 void eventset(struct myevent_s* mv,int fd,void(*callback)(void*),void*arg);
@@ -81,7 +105,7 @@ void acceptconn(void*arg)
         return;
     }
     fcntl(cfd,F_SETFL,O_NONBLOCK);
-    eventset(my_events+i,cfd,recvdata,my_events+i);
+    eventset(my_events+i,cfd,servlogin,my_events+i);
     eventadd(g_efd,EPOLLIN,my_events+i);
     /*[time:%ld]*/
     printf("new connect [%s:%d], pos[%d]\n", 
@@ -105,23 +129,80 @@ void initlistensocket(int efd,short port)
     listen(lfd,20);
     return ;
 }
-void recvdata(void*ptr)
+void servlogin(void*ptr)
+{
+    struct myevent_s*arg=(struct myevent_s*)ptr;
+   int cfd=arg->fd;
+   PACK login_pack;
+    recv(cfd,&login_pack,sizeof(login_pack),0);
+    if(login_pack.msg_kind==MSG_LOGIN){
+        int i=0;
+        for( i=0;i<3;i++){
+            if(0==strcmp(login_pack.packSender,infoList[i].name)&&
+                strcmp(login_pack.buf,infoList[i].passwd)==0){
+                strcpy(login_pack.buf,"登录成功");
+                send(cfd,&login_pack,sizeof(login_pack),0);
+                searchMap[i].cfd=cfd;
+                eventdel(g_efd,arg);
+                eventset(arg,cfd,recvdata,arg);
+                eventadd(g_efd,EPOLLIN,arg);
+                return;
+            }
+        }
+        if(i==3){
+                strcpy(login_pack.buf,"登录失败,重新输入");
+                send(cfd,&login_pack,sizeof(login_pack),0);
+                return;
+        }
+        
+    }else if(login_pack.msg_kind==MSG_EXIT){
+        eventdel(g_efd,arg);
+        printf("[cfd=%d]客户退出",arg->fd);
+        close(arg->fd);
+        
+        return ;
+    }else{
+        fprintf(strerror,"登录时发送来错误的类型");
+        return;
+    }
+}
+
+void recv_send_data(void*ptr)
 {
     struct myevent_s*arg=(struct myevent_s*)ptr;
     int cfd=arg->fd;
-    char buf[BUFSIZ];
-    int ret=recv(cfd,buf,BUFSIZ,0);
-    eventdel(g_efd,arg);
+    PACK c_pack;
+    int ret=recv(cfd,&c_pack,sizeof(c_pack),0);
     if(ret==-1){
         close(cfd);
         printf("recv[fd=%d] error[%d]:%s\n", cfd, errno, strerror(errno));
     }else if(ret==0){
+        eventdel(g_efd,arg);
         close(cfd);
         printf("[cfd=%d]客户退出",cfd);
     }else{
-        printf("client:%s\n",buf);
-        eventset(arg,cfd,senddata,arg);
-        eventadd(g_efd,EPOLLOUT,arg);
+        // printf("%s--->%s\n",c_pack.packSender,c_pack.packRecver);
+        if(c_pack.msg_kind==MSG_CNT){
+            int i;
+            for(i=0;i<3;i++){
+                if(strcmp(c_pack.packRecver,searchMap[i].name)==0){
+                    if(searchMap[i].cfd==-1){
+                        s_gets(c_pack.buf,"sorry,对方不在线啊");
+                        send(cfd,&c_pack,sizeof(c_pack),0);
+                    }else{
+                        send(searchMap[i].cfd,&c_pack,sizeof(c_pack),0);
+
+                    }
+                }
+            }
+            if(i==3){
+                s_gets(c_pack.buf,"sorry,你没这好友啊");
+                send(cfd,&c_pack,sizeof(c_pack),0);
+            }
+        }else{
+                s_gets(c_pack.buf,"sorry,暂时不处理啊");
+                send(cfd,&c_pack,sizeof(c_pack),0);
+        }
     }
 
 }
@@ -164,9 +245,6 @@ int main(int argc,char**argv)
         for(int i=0;i<nfd;i++){
             struct myevent_s*ev=(struct myevent_s*)all_events[i].data.ptr;
             if((all_events[i].events&EPOLLIN)&&(ev->events&EPOLLIN)){
-                ev->callback(ev->arg);
-            }
-            if((all_events[i].events&EPOLLOUT)&&(ev->events&EPOLLOUT)){
                 ev->callback(ev->arg);
             }
         }
