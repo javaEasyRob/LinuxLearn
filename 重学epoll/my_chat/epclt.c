@@ -19,10 +19,12 @@
 #define NAMESIZE 10
 #define SERV_PORT 8888
 #define MAXLINE 4096
+#define MSG_EXIT 0
 #define MSG_ACK 1
 #define MSG_CNT  2
 #define MSG_LOGIN 3
-#define MSG_EXIT 0
+#define MSG_FAIL 4
+#define MSG_BROADCAST 5
 #define EXIT "exit"
 int cfd=-1;
 // typedef struct ClinetInfo
@@ -63,49 +65,45 @@ void*toWrite(void*arg)
     send_pack.msg_kind=MSG_CNT;
     strcpy(send_pack.packSender,packSenderName);
     while(1){
-        puts("发送给：");
+        printf("发送给:");
         s_gets(send_pack.packRecver,NAMESIZE);//后续有列表了用数字
         // send_pack.buf;
-        printf("%s:",packSenderName);        
+        printf("[输入框]%s:",packSenderName);        
         s_gets(send_pack.buf,BUFSIZ);
         while(send(cfd,&send_pack,sizeof(send_pack),0)<0)
             continue;   
     }
     pthread_exit(NULL);
-}
+} 
 
 int login(char*clientName)
 {
-    PACK loginPack,ret_Pack;
+    PACK loginPack,ret_Pack,exit_Pack;
     // LOGIN loginInfo;
     loginPack.msg_kind=MSG_LOGIN;
     while(1){
 
         printf("姓名:");
         s_gets(loginPack.packSender,NAMESIZE);
+        strcpy(clientName,loginPack.packSender);
         printf("密码:");
         s_gets(loginPack.buf,PWDSIZE);
         send(cfd,&loginPack,sizeof(loginPack),0);
-        recv(cfd,&ret_Pack,sizeof(ret_Pack),0);
-        if(ret_Pack.msg_kind==MSG_LOGIN)
-        {
+        Recv(cfd,&ret_Pack,sizeof(ret_Pack),0);
+        if(ret_Pack.msg_kind==MSG_ACK){
                 printf("%s\n",ret_Pack.buf);
-            if(strcmp(ret_Pack.buf,"登录成功")==0){
                 return 0;
-            }else{
+        }else if(ret_Pack.msg_kind==MSG_FAIL){
                 puts("你要退出吗?");
-                char choice[2];
-                s_gets(choice,2);
-                
-                if(!strcmp(choice,EXIT)){         
-                    loginPack.msg_kind=MSG_EXIT;
-                    send(cfd,&loginPack,sizeof(loginPack),0);
+                char choice[5];
+                s_gets(choice,5);
+                if(!strcmp(choice,EXIT)||!strcmp(choice,"quit")){         
+                    exit_Pack.msg_kind=MSG_EXIT;
+                    send(cfd,&exit_Pack,sizeof(exit_Pack),0);
                     close(cfd);
                 }
-            }
         }else{
-            perror("粗了小错误");
-            // exit(EXIT_FAILURE);
+            perror("服务器粗了小错误");
             return -1;
         }
     }
@@ -131,7 +129,7 @@ int main()
         puts("系统出错啦！");
         exit(EXIT_FAILURE);
     }
-
+    printf("欢迎登录,%s\n",clientName);
     pthread_t pid1,pid2;
     
     pthread_create(&pid1,NULL,toRead,(void*)(clientName));

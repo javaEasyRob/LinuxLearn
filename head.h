@@ -168,7 +168,18 @@ ssize_t recv_peek(int sockfd, void *buf,size_t len)
 		return ret;
 	}
 }
-
+ssize_t Recv(int sockfd, void *buf,size_t len,int flags)
+{
+	while(1)
+	{
+		//recv函数只用于套接口
+		//recv函数读取后，不将数据在缓冲区清除
+		int ret= recv(sockfd, buf, len,flags);
+		if(ret == -1 && errno == EINTR)
+			continue;
+		return ret;
+	}
+}
 ssize_t readline(int sockfd, void *buf, size_t maxline)
 {
 	int ret;//设置窥探返回值

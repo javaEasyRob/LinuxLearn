@@ -10,15 +10,16 @@
 #include <time.h>
 #include<stdbool.h>
 #include <sys/types.h>  
-#include"../head.h"
+#include"../../head.h"
 #define MSG_EXIT 0
 #define MSG_ACK 1
 #define MSG_CNT  2
 #define MSG_LOGIN 3
+#define MSG_FAIL 4
 #define PWDSIZE 10
 #define NAMESIZE 10
 #define MAX_EVENTS  1024      //监听上限
-#define SERV_PORT   8887
+#define SERV_PORT   8888
 int g_efd;
 typedef struct PACK{
     int msg_kind;
@@ -45,8 +46,24 @@ typedef struct Name_fd_map{
     char name[NAMESIZE];
     int cfd;
 }Name_fd_map;
-PersonInfo infoList[3]={{"adl","adl"},{"hzn","hzn"},{"sad","sad"}};
-Name_fd_map searchMap[3]={{"adl",-1},{"hzn",-1},{"sad",-1}};
+typedef struct Person{
+    PersonInfo infoList;
+    int fd;
+}Person;
+Person personList[3]={{{"adl","adl"},-1},{{"hzn","hzn"},-1},{{"sad","sad"},-1}};
+int findPersonName(const char*name)
+{  
+     int i=0;
+    for(i=0;i<3;i++){
+        if(strcmp(personList[i].infoList.name,name)==0){
+            return i;
+        }
+    }
+    if(i==3){
+        return -1;
+    }
+}
+void recv_send_data(void*arg);
 void servlogin(void*arg);
 void recvdata(void*arg);
 void senddata(void*arg);
@@ -77,7 +94,7 @@ void eventadd(int efd,int event,struct myevent_s*ms)
         op=EPOLL_CTL_MOD;
         ms->status=1;
     }
-    printf("现在发生的[event=%d]\n",event);
+    // printf("现在发生的[event=%d]\n",event);
     epevent.events=event;
     ms->events=event;
     epevent.data.ptr=(void*)ms;
@@ -125,54 +142,75 @@ void initlistensocket(int efd,short port)
     sin.sin_addr.s_addr=htonl(INADDR_ANY);
     sin.sin_family=AF_INET;
     sin.sin_port=htons(port);
-    bind(lfd,(struct sockaddr*)&sin,sizeof(sin));
-    listen(lfd,20);
+    Bind(lfd,(struct sockaddr*)&sin,sizeof(sin));
+    Listen(lfd,20);
     return ;
 }
 void servlogin(void*ptr)
 {
     struct myevent_s*arg=(struct myevent_s*)ptr;
-   int cfd=arg->fd;
-   PACK login_pack;
-    recv(cfd,&login_pack,sizeof(login_pack),0);
+    int cfd=arg->fd;
+    PACK login_pack,ret_pack;
+    int ret=-1;
+    ret=Recv(cfd,&login_pack,sizeof(login_pack),0);
+    if(ret==0){
+        printf("[cfd=%d]客户端退出啦\n",cfd);
+        close(cfd);
+    }
     if(login_pack.msg_kind==MSG_LOGIN){
-        int i=0;
-        for( i=0;i<3;i++){
-            if(0==strcmp(login_pack.packSender,infoList[i].name)&&
-                strcmp(login_pack.buf,infoList[i].passwd)==0){
-                strcpy(login_pack.buf,"登录成功");
-                send(cfd,&login_pack,sizeof(login_pack),0);
-                searchMap[i].cfd=cfd;
-                eventdel(g_efd,arg);
-                eventset(arg,cfd,recvdata,arg);
-                eventadd(g_efd,EPOLLIN,arg);
-                return;
+        int pos=findPersonName(login_pack.packSender);
+        if(pos==-1||strcmp(personList[pos].infoList.passwd,login_pack.buf)||personList[pos].fd>0){
+            strcpy(login_pack.buf,"登录失败,重新输入");
+            ret_pack.msg_kind=MSG_FAIL;
+            send(cfd,&ret_pack,sizeof(ret_pack),0);
+            return;
+        }
+        else{
+            ret_pack.msg_kind=MSG_ACK;
+            strcpy(ret_pack.buf,"登录成功");
+            send(cfd,&ret_pack,sizeof(ret_pack),0);
+            personList[pos].fd=cfd;
+            eventdel(g_efd,arg);
+            eventset(arg,cfd,recv_send_data,arg);
+            eventadd(g_efd,EPOLLIN,arg);
+            return;
             }
-        }
-        if(i==3){
-                strcpy(login_pack.buf,"登录失败,重新输入");
-                send(cfd,&login_pack,sizeof(login_pack),0);
-                return;
-        }
-        
     }else if(login_pack.msg_kind==MSG_EXIT){
         eventdel(g_efd,arg);
         printf("[cfd=%d]客户退出",arg->fd);
         close(arg->fd);
-        
         return ;
     }else{
-        fprintf(strerror,"登录时发送来错误的类型");
+        fprintf(stderr,"登录时发送的PACK类型错误");
         return;
     }
 }
-
-void recv_send_data(void*ptr)
+void recvdata(void*ptr)
 {
     struct myevent_s*arg=(struct myevent_s*)ptr;
     int cfd=arg->fd;
-    PACK c_pack;
-    int ret=recv(cfd,&c_pack,sizeof(c_pack),0);
+    char buf[BUFSIZ];
+    int ret=Recv(cfd,buf,BUFSIZ,0);
+    eventdel(g_efd,arg);
+    if(ret==-1){
+        close(cfd);
+        printf("recv[fd=%d] error[%d]:%s\n", cfd, errno, strerror(errno));
+    }else if(ret==0){
+        close(cfd);
+        printf("[cfd=%d]客户退出",cfd);
+    }else{
+        printf("client:%s\n",buf);
+        eventset(arg,cfd,senddata,arg);
+        eventadd(g_efd,EPOLLOUT,arg);
+    }
+
+}
+void recv_send_data(void*ptr)
+{
+    struct myevent_s*arg=(struct myevent_s*)ptr;
+    int cfd=arg->fd,reserver_fd=-1;
+    PACK connct_pack,ret_pack;
+    int ret=Recv(cfd,&connct_pack,sizeof(connct_pack),0);
     if(ret==-1){
         close(cfd);
         printf("recv[fd=%d] error[%d]:%s\n", cfd, errno, strerror(errno));
@@ -181,30 +219,28 @@ void recv_send_data(void*ptr)
         close(cfd);
         printf("[cfd=%d]客户退出",cfd);
     }else{
-        // printf("%s--->%s\n",c_pack.packSender,c_pack.packRecver);
-        if(c_pack.msg_kind==MSG_CNT){
-            int i;
-            for(i=0;i<3;i++){
-                if(strcmp(c_pack.packRecver,searchMap[i].name)==0){
-                    if(searchMap[i].cfd==-1){
-                        s_gets(c_pack.buf,"sorry,对方不在线啊");
-                        send(cfd,&c_pack,sizeof(c_pack),0);
-                    }else{
-                        send(searchMap[i].cfd,&c_pack,sizeof(c_pack),0);
-
-                    }
+        // printf("%s--->%s\n",connct_pack.packSender,connct_pack.packRecver);
+        if(connct_pack.msg_kind==MSG_CNT){
+            // int i;
+            // for(i=0;i<3;i++){
+            //     if(strcmp(connct_pack.packRecver,searchMap[i].name)==0){
+            int pos=findPersonName(connct_pack.packRecver);
+            if(pos==-1){
+                ret_pack.msg_kind=MSG_FAIL;
+                strcpy(ret_pack.buf,"sorry,你没这好友啊");
+                send(cfd,&ret_pack,sizeof(ret_pack),0);
+                return;
+            }else if((reserver_fd=personList[pos].fd)==-1){
+                strcpy(ret_pack.buf,"sorry,对方不在线啊");
+                send(cfd,&ret_pack,sizeof(ret_pack),0);                
+            }else{
+                send(reserver_fd,&connct_pack,sizeof(connct_pack),0);
                 }
-            }
-            if(i==3){
-                s_gets(c_pack.buf,"sorry,你没这好友啊");
-                send(cfd,&c_pack,sizeof(c_pack),0);
-            }
         }else{
-                s_gets(c_pack.buf,"sorry,暂时不处理啊");
-                send(cfd,&c_pack,sizeof(c_pack),0);
+                strcpy(ret_pack.buf,"sorry,暂时不处理啊");
+                send(cfd,&ret_pack,sizeof(ret_pack),0);
         }
     }
-
 }
 void senddata(void*ptr)
 {
