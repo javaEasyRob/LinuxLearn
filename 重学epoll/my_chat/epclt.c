@@ -33,7 +33,6 @@ int cfd=-1;
 //     char IP[32];
 //     int Port;
 // }ClinetInfo;
-
 typedef struct PACK{
     int msg_kind;
     char packSender[NAMESIZE];
@@ -41,18 +40,40 @@ typedef struct PACK{
     char buf[BUFSIZ];
 }PACK;
 
-
+void sendPack(int cfd,PACK *ppack)
+{
+    if(Send(cfd,ppack,sizeof(*ppack),0)==-1){
+        puts("粗错了");
+        close(cfd);
+        printf("recv[fd=%d] error[%d]:%s\n", cfd, errno, strerror(errno));
+        // pthread_exit(NULL);
+        exit(EXIT_FAILURE);
+    }   
+}
+void readPack(int cfd,PACK *ppack)
+{
+    int ret=Recv(cfd,ppack,sizeof(*ppack),0);
+        if(ret==0){
+            close(cfd);
+            puts("服务器挂了");
+            exit(EXIT_FAILURE);
+        }else if(ret==-1){
+            puts("粗错了");
+            close(cfd);
+            printf("recv[fd=%d] error[%d]:%s\n", cfd, errno, strerror(errno));
+            exit(EXIT_FAILURE);
+        }else{    
+            if(ppack->msg_kind==MSG_CNT||ppack->msg_kind==MSG_BROADCAST){ 
+                printf("%s:%s\n",ppack->packSender,ppack->buf);
+            }
+        }
+}
 void*toRead(void*arg)
 {
     
     PACK recv_pack;
     while(1){
-        while(recv(cfd,&recv_pack,sizeof(recv_pack),0)==-1){
-            continue;
-        }
-        if(recv_pack.msg_kind==MSG_CNT){ 
-            printf("%s:%s\n",recv_pack.packSender,recv_pack.buf);
-        }
+        readPack(cfd,&recv_pack);
         // else if( recv_pack.msg_kind==MSG_CNT&&strcmp(recv_pack.buf,"收到")==0)
         //     printf("发送成功\n");
     }
@@ -62,19 +83,27 @@ void*toWrite(void*arg)
 {
     char *packSenderName=(char*)arg;
     PACK send_pack;
-    send_pack.msg_kind=MSG_CNT;
     strcpy(send_pack.packSender,packSenderName);
     while(1){
-        printf("发送给:");
-        s_gets(send_pack.packRecver,NAMESIZE);//后续有列表了用数字
-        // send_pack.buf;
-        printf("[输入框]%s:",packSenderName);        
-        s_gets(send_pack.buf,BUFSIZ);
-        while(send(cfd,&send_pack,sizeof(send_pack),0)<0)
-            continue;   
-    }
+        char choice[3];
+        puts("1---私聊\t2---群发");
+        s_gets(choice,3);
+        if(!strcmp(choice,"1")){
+            printf("发送给:");
+            s_gets(send_pack.packRecver,NAMESIZE);//后续有列表了用数字
+            send_pack.msg_kind=MSG_CNT;
+            printf("[输入框]%s:",packSenderName);        
+            s_gets(send_pack.buf,BUFSIZ);
+            sendPack(cfd,&send_pack);
+        }else if(!strcmp(choice,"2")){
+            send_pack.msg_kind=MSG_BROADCAST;
+            printf("[输入框]%s:",packSenderName);        
+            s_gets(send_pack.buf,BUFSIZ);
+            sendPack(cfd,&send_pack);
+        }
+    } 
     pthread_exit(NULL);
-} 
+}
 
 int login(char*clientName)
 {
@@ -88,8 +117,8 @@ int login(char*clientName)
         strcpy(clientName,loginPack.packSender);
         printf("密码:");
         s_gets(loginPack.buf,PWDSIZE);
-        send(cfd,&loginPack,sizeof(loginPack),0);
-        Recv(cfd,&ret_Pack,sizeof(ret_Pack),0);
+        sendPack(cfd,&loginPack);
+        readPack(cfd,&ret_Pack);
         if(ret_Pack.msg_kind==MSG_ACK){
                 printf("%s\n",ret_Pack.buf);
                 return 0;
@@ -99,7 +128,7 @@ int login(char*clientName)
                 s_gets(choice,5);
                 if(!strcmp(choice,EXIT)||!strcmp(choice,"quit")){         
                     exit_Pack.msg_kind=MSG_EXIT;
-                    send(cfd,&exit_Pack,sizeof(exit_Pack),0);
+                    sendPack(cfd,&exit_Pack);
                     close(cfd);
                 }
         }else{
@@ -110,14 +139,14 @@ int login(char*clientName)
 }
 void connect_init()
 {
-    cfd=socket(AF_INET,SOCK_STREAM,0);
+    cfd=Socket(AF_INET,SOCK_STREAM,0);
     struct sockaddr_in addr;
     addr.sin_family=AF_INET;
     addr.sin_port=htons(SERV_PORT);
     inet_pton(AF_INET,"127.0.0.1",&addr.sin_addr.s_addr);
     puts("connecting...");
-    while((connect(cfd,(struct sockaddr*)&addr,sizeof(addr)))==-1){
-    }
+    while((Connect(cfd,(struct sockaddr*)&addr,sizeof(addr)))==-1);
+
     puts("connect correct\n");
     return ;
 }

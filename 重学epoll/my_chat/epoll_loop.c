@@ -16,6 +16,7 @@
 #define MSG_CNT  2
 #define MSG_LOGIN 3
 #define MSG_FAIL 4
+#define MSG_BROADCAST 5
 #define PWDSIZE 10
 #define NAMESIZE 10
 #define MAX_EVENTS  1024      //监听上限
@@ -63,6 +64,7 @@ int findPersonName(const char*name)
         return -1;
     }
 }
+int  ServerSendPack(int cfd,PACK *ppack);
 void recv_send_data(void*arg);
 void servlogin(void*arg);
 void recvdata(void*arg);
@@ -90,9 +92,9 @@ void eventadd(int efd,int event,struct myevent_s*ms)
     int op;
     if(ms->status==0){
         op=EPOLL_CTL_ADD;
+        ms->status=1;
     }else{
         op=EPOLL_CTL_MOD;
-        ms->status=1;
     }
     // printf("现在发生的[event=%d]\n",event);
     epevent.events=event;
@@ -111,7 +113,7 @@ void acceptconn(void*arg)
     int listenfd=mv->fd;
     struct sockaddr_in clien_addr;
     int clien_len=sizeof(clien_addr);
-    int cfd=accept(listenfd,(struct sockaddr *)&clien_addr,&clien_len);
+    int cfd=Accept(listenfd,(struct sockaddr *)&clien_addr,&clien_len);
     int i;
     for(i=0;i<MAX_EVENTS;i++){
         if(my_events[i].status==0)
@@ -131,7 +133,7 @@ void acceptconn(void*arg)
 }
 void initlistensocket(int efd,short port)
 {
-    int lfd=socket(AF_INET,SOCK_STREAM,0);
+    int lfd=Socket(AF_INET,SOCK_STREAM,0);
     fcntl(lfd,F_SETFL,O_NONBLOCK);
     int opt;
     setsockopt(lfd,SOL_SOCKET,SO_REUSEPORT,&opt,sizeof(opt));
@@ -156,19 +158,22 @@ void servlogin(void*ptr)
     if(ret==0){
         printf("[cfd=%d]客户端退出啦\n",cfd);
         close(cfd);
+        return;
     }
     if(login_pack.msg_kind==MSG_LOGIN){
         int pos=findPersonName(login_pack.packSender);
         if(pos==-1||strcmp(personList[pos].infoList.passwd,login_pack.buf)||personList[pos].fd>0){
             strcpy(login_pack.buf,"登录失败,重新输入");
             ret_pack.msg_kind=MSG_FAIL;
-            send(cfd,&ret_pack,sizeof(ret_pack),0);
+            if(ServerSendPack(cfd,&ret_pack)==-1)
+                return;
             return;
         }
         else{
             ret_pack.msg_kind=MSG_ACK;
             strcpy(ret_pack.buf,"登录成功");
-            send(cfd,&ret_pack,sizeof(ret_pack),0);
+            if(ServerSendPack(cfd,&ret_pack)==-1)
+                return;
             personList[pos].fd=cfd;
             eventdel(g_efd,arg);
             eventset(arg,cfd,recv_send_data,arg);
@@ -205,6 +210,16 @@ void recvdata(void*ptr)
     }
 
 }
+int  ServerSendPack(int cfd,PACK *ppack)
+{
+    if(Send(cfd,ppack,sizeof(*ppack),0)==-1){
+        puts("粗错了");
+        close(cfd);
+        printf("send[fd=%d] error[%d]:%s\n", cfd, errno, strerror(errno));
+        return -1;
+    }   
+    return 0;
+}
 void recv_send_data(void*ptr)
 {
     struct myevent_s*arg=(struct myevent_s*)ptr;
@@ -228,17 +243,29 @@ void recv_send_data(void*ptr)
             if(pos==-1){
                 ret_pack.msg_kind=MSG_FAIL;
                 strcpy(ret_pack.buf,"sorry,你没这好友啊");
-                send(cfd,&ret_pack,sizeof(ret_pack),0);
+               if(ServerSendPack(cfd,&ret_pack)==-1)
+                   return;
                 return;
             }else if((reserver_fd=personList[pos].fd)==-1){
                 strcpy(ret_pack.buf,"sorry,对方不在线啊");
-                send(cfd,&ret_pack,sizeof(ret_pack),0);                
+                if(ServerSendPack(cfd,&ret_pack)==-1)
+                    return;  
             }else{
-                send(reserver_fd,&connct_pack,sizeof(connct_pack),0);
+                if(ServerSendPack(reserver_fd,&connct_pack)==-1)
+                    return;  
                 }
+        }else if(connct_pack.msg_kind==MSG_BROADCAST){
+            for(int j=0;j<3;j++){
+                reserver_fd=personList[j].fd;
+                if(reserver_fd==-1||reserver_fd==cfd)
+                    continue;
+                if(ServerSendPack(reserver_fd,&connct_pack)==-1)
+                    continue;  
+
+            }
         }else{
                 strcpy(ret_pack.buf,"sorry,暂时不处理啊");
-                send(cfd,&ret_pack,sizeof(ret_pack),0);
+                Send(cfd,&ret_pack,sizeof(ret_pack),0);
         }
     }
 }
@@ -275,8 +302,9 @@ int main(int argc,char**argv)
     initlistensocket(g_efd,port);
     while(1){
         int nfd=epoll_wait(g_efd,all_events,MAX_EVENTS+1,1000);
-        if(nfd==0){
-            puts("没有事就是好事");
+        if(nfd==-1){
+            fprintf(stderr,"epoll_wait");
+            exit(EXIT_FAILURE);
         }
         for(int i=0;i<nfd;i++){
             struct myevent_s*ev=(struct myevent_s*)all_events[i].data.ptr;

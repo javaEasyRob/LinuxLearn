@@ -90,7 +90,8 @@ int Connect(int sockfd, const struct sockaddr *addr,socklen_t addrlen)
  {
      int n=connect(sockfd,addr,addrlen);
     if(n<0){
-        sys_err(__func__);
+        // sys_err(__func__);
+        return n;
     }
     return n;
 }
@@ -180,6 +181,19 @@ ssize_t Recv(int sockfd, void *buf,size_t len,int flags)
 		return ret;
 	}
 }
+ssize_t Send(int sockfd, void *buf,size_t len,int flags)
+{
+	while(1)
+	{
+		//recv函数只用于套接口
+		//recv函数读取后，不将数据在缓冲区清除
+		int ret= send(sockfd, buf, len,flags);
+		if(ret == -1 && errno == EINTR)
+			continue;
+		return ret;
+	}
+}
+
 ssize_t readline(int sockfd, void *buf, size_t maxline)
 {
 	int ret;//设置窥探返回值
