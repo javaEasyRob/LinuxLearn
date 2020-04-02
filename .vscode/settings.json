@@ -12,6 +12,7 @@
         "epoll.h": "c",
         "select.h": "c",
         "head.h": "c",
-        "typeinfo": "c"
+        "typeinfo": "c",
+        "ui.h": "c"
     }
 }

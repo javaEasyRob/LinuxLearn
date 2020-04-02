@@ -11,34 +11,11 @@
 #include<stdbool.h>
 #include <sys/types.h>  
 #include"head.h"
-#define MSG_EXIT 0
-#define MSG_ACK 1
-#define MSG_CNT  2
-#define MSG_LOGIN 3
-#define MSG_FAIL 4
-#define MSG_BROADCAST 5
-#define PWDSIZE 10
-#define NAMESIZE 10
-#define MAX_EVENTS  1024      //监听上限
+#include"s_io.h"
 #define SERV_PORT   8888
 int g_efd;
-typedef struct PACK{
-    int msg_kind;
-    char packSender[NAMESIZE];
-    char packRecver[NAMESIZE];
-    char buf[BUFSIZ];
-}PACK;
-//这个结构体最好只放事件的信息
-struct myevent_s{
-    int fd;
-    uint32_t events;
-    void*arg;
-    void(*callback)(void*);
-    bool status;//1在树上，0不在树上
 
-}my_events[MAX_EVENTS+1];
-
-typedef struct personinfo{
+typedef struct Personinfo{
     char name[NAMESIZE];
     char passwd[PWDSIZE];
 }PersonInfo;
@@ -49,50 +26,10 @@ typedef struct Person{
 Person personList[3]={{{"adl","adl"},-1},{{"hzn","hzn"},-1},{{"sad","sad"},-1}};
 
 int findPersonName(const char*name);
-int  ServerSendPack(int cfd,PACK *ppack);
-void recv_send_data(void*arg);
-void servlogin(void*arg);
-void recvdata(void*arg);
-void senddata(void*arg);
-void acceptconn(void*arg);
 
-void eventset(struct myevent_s* mv,int fd,void(*callback)(void*),void*arg);
-void eventadd(int efd,int event,struct myevent_s*ms);
-void eventdel(int efd,struct  myevent_s*ms);
-//设置我们自创的结构体的属性，保留EPOLLIN|。。。的设置。这里设置arg为自己的指针
-void eventset(struct myevent_s* mv,int fd,void(*callback)(void*),void*arg)
-{
-    mv->fd=fd;
-    mv->callback=callback;
-    mv->events=0;//event 需要在eventadd中根据节点在不在树上确定需要的是啥
-    mv->arg=arg;
-    mv->status=0;
-}
 //捆绑我们自创事件的结构体到epollevent的data.ptr中，
 //设置ctl的模式mod/add，设置epollevent in/out
-void eventadd(int efd,int event,struct myevent_s*ms)
-{
-    struct epoll_event epevent;/*设置的时候不需要放在全局或者参数里面 ，
-    尽管看看貌似也可以，但要解偶吧，把上树的篇幅设的比较大，但也就
-    知道了这个epevent 放在里面其实挺好的，复用性强*/
-    int op;
-    if(ms->status==0){
-        op=EPOLL_CTL_ADD;
-        ms->status=1;
-    }else{
-        op=EPOLL_CTL_MOD;
-    }
-    // printf("现在发生的[event=%d]\n",event);
-    epevent.events=event;
-    ms->events=event;
-    epevent.data.ptr=(void*)ms;
-    epoll_ctl(efd,op,ms->fd,&epevent);
-}
-void eventdel(int efd,struct  myevent_s*ms)
-{
-    ms->status=0;
-    epoll_ctl(efd,EPOLL_CTL_DEL,ms->fd,NULL);
-}
+
 void acceptconn(void*arg)
 {
     struct myevent_s*mv=(struct myevent_s*)arg;
@@ -255,26 +192,7 @@ void recv_send_data(void*ptr)
         }
     }
 }
-void senddata(void*ptr)
-{
-    struct myevent_s*arg=(struct myevent_s*)ptr;
-    int cfd=arg->fd;
-    char buf[BUFSIZ];
-    puts("server:");
-    s_gets(buf,BUFSIZ);
-    int ret=send(cfd,buf,BUFSIZ,0);
-    eventdel(g_efd,arg);
-    if(ret==-1){
-        close(cfd);
-        printf("recv[fd=%d] error[%d]:%s\n", cfd, errno, strerror(errno));
-    }else if(ret==0){
-        close(cfd);
-        printf("[cfd=%d]客户退出",cfd);
-    }else{
-    eventset(arg,cfd,recvdata,arg);
-    eventadd(g_efd,EPOLLIN,arg);
-    }
-}
+
 int findPersonName(const char*name)
 {  
      int i=0;
