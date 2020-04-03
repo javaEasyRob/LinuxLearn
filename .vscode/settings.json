@@ -13,6 +13,10 @@
         "select.h": "c",
         "head.h": "c",
         "typeinfo": "c",
-        "ui.h": "c"
+        "ui.h": "c",
+        "inet.h": "c",
+        "iostream": "cpp",
+        "fstream": "cpp",
+        "string": "cpp"
     }
 }

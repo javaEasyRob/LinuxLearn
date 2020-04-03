@@ -26,7 +26,7 @@
 #define NAMESIZE 10
 
 #define MAX_EVENTS  1024      //监听上限
-
+#define PEONUM 3 
 typedef struct PACK{
     int msg_kind;
     char packSender[NAMESIZE];
@@ -35,14 +35,26 @@ typedef struct PACK{
 }PACK;
 
 //这个结构体最好只放事件的信息
-struct myevent_s{
+typedef struct myevent_s{
     int fd;
     uint32_t events;
     void*arg;
     void(*callback)(void*);
     bool status;//1在树上，0不在树上
 
-}my_events[MAX_EVENTS+1];
+}myevent_s;
+
+typedef struct personinfo{
+    char name[NAMESIZE];
+    char passwd[PWDSIZE];
+}PersonInfo;
+typedef struct Person{
+    PersonInfo infoList;
+    int fd;
+}Person;
+
+int findPersonName(const char*name);
+void initlistensocket(int efd,short port);
 void recv_send_data(void*arg);
 void servlogin(void*arg);
 void recvdata(void*arg);
@@ -51,5 +63,6 @@ void acceptconn(void*arg);
 void eventset(struct myevent_s* mv,int fd,void(*callback)(void*),void*arg);
 void eventadd(int efd,int event,struct myevent_s*ms);
 void eventdel(int efd,struct  myevent_s*ms);
-int  ServerSendPack(int cfd,PACK *ppack);
+int  ServerSendPack(int cfd,PACK *pack);
+void DealEventLoop(struct epoll_event* all_events);
 #endif
