@@ -16,13 +16,21 @@ int connect_init()
 
 void sendPack(int cfd,PACK *pack)
 {
-    if(Send(cfd,pack,sizeof(*pack),0)==-1){
+    int sendlen;
+    if((sendlen=Send(cfd,pack,sizeof(*pack),0))==-1){
+        
         puts("粗错了");
         close(cfd);
         printf("send[fd=%d] error[%d]:%s\n", cfd, errno, strerror(errno));
         // pthread_exit(NULL);
         exit(EXIT_FAILURE);
     }   
+    // Recv(cfd,pack,sizeof(*pack),0);
+    // printf("%d",sendlen);
+    // printf("%s",pack->packSender);
+    // printf("%s",pack->buf);
+    // printf("%s",pack->packSender);
+    
 }
 void readPack(int cfd,PACK *pack)
 {
@@ -39,7 +47,8 @@ void readPack(int cfd,PACK *pack)
         }else{    
             if(pack->msg_kind==MSG_CNT||pack->msg_kind==MSG_BROADCAST){ 
                 printf("%s:%s\n",pack->packSender,pack->buf);
-            }
+            }else if(pack->msg_kind==MSG_FAIL||pack->msg_kind==MSG_ACK)
+                printf("%s\n",pack->buf);
         }
 }
 void privateChat(PACK*send_Pack,int cfd,char*packSenderName)
@@ -73,7 +82,7 @@ int exitRequest(PACK*exit_Pack,int cfd,char*packSenderName)
     puts("你要退出吗?");
     char choice[5];
     s_gets(choice,5);
-    if(!strcmp(choice,EXIT)||!strcmp(choice,"quit")){         
+    if(!strcmp(choice,EXIT)||!strcmp(choice,"quit")||!strcmp(choice,"y")){         
         exit_Pack->msg_kind=MSG_EXIT;
         strcpy(exit_Pack->packSender,packSenderName);
         sendPack(cfd,exit_Pack);

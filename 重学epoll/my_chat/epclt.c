@@ -58,10 +58,12 @@ int login(char*clientName)
     while(1){
         loginConfirmation(&login_Pack,&ret_Pack,cfd);
         strcpy(clientName,login_Pack.packSender);
+
         if(ret_Pack.msg_kind==MSG_ACK){
-            printf("%s\n",ret_Pack.buf);
+            // printf("%s\n",ret_Pack.buf);
             return 0;
         }else if(ret_Pack.msg_kind==MSG_FAIL){
+            // printf("%s",ret_Pack.buf);
             if(exitRequest(&exit_Pack,cfd,clientName))
                 return -2;
             else
@@ -77,10 +79,15 @@ int main()
 {
     cfd=connect_init();
     char clientName[NAMESIZE];
-    if(login(clientName)==-1){
+    int ret=login(clientName);
+    if(ret==-1){
         puts("系统出错啦！");
         exit(EXIT_FAILURE);
-    }
+    }else if(ret ==-2){
+        puts("bye");
+        exit(EXIT_SUCCESS);
+
+    }else{
     printf("欢迎登录,%s\n",clientName);
     pthread_t pid1,pid2;
     
@@ -92,4 +99,5 @@ int main()
     // pthread_join(pid1,NULL);
     // pthread_join(pid2,NULL);
     close(cfd);
+    }
 }

@@ -65,4 +65,9 @@ void eventadd(int efd,int event,struct myevent_s*ms);
 void eventdel(int efd,struct  myevent_s*ms);
 int  ServerSendPack(int cfd,PACK *pack);
 void DealEventLoop(struct epoll_event* all_events);
+int ServerRecvPack(PACK*pack,struct myevent_s*ptr);
+int checkAccount(char *Name,char*Passwd);
+int ServerRetPack(int cfd,PACK*pack,char*retbuf,int msg_kind);
+int seekFriend(char *myName,char *friendName);
+int broadCast(int cfd,PACK*pack);
 #endif

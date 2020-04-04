@@ -17,6 +17,7 @@
         "inet.h": "c",
         "iostream": "cpp",
         "fstream": "cpp",
-        "string": "cpp"
+        "string": "cpp",
+        "c_io.h": "c"
     }
 }
