@@ -77,14 +77,14 @@ void loginConfirmation(PACK*login_Pack,PACK*ret_Pack,int cfd)
     sendPack(cfd,login_Pack);
     readPack(cfd,ret_Pack);         
 }
-int exitRequest(PACK*exit_Pack,int cfd,char*packSenderName)
+int exitRequest(PACK*exit_Pack,int cfd/*,char*packSenderName*/)
 {
     puts("你要退出吗?");
     char choice[5];
     s_gets(choice,5);
     if(!strcmp(choice,EXIT)||!strcmp(choice,"quit")||!strcmp(choice,"y")){         
         exit_Pack->msg_kind=MSG_EXIT;
-        strcpy(exit_Pack->packSender,packSenderName);
+        // strcpy(exit_Pack->packSender,packSenderName);
         sendPack(cfd,exit_Pack);
         close(cfd);
         return 1;

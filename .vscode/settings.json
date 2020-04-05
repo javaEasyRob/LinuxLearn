@@ -18,6 +18,7 @@
         "iostream": "cpp",
         "fstream": "cpp",
         "string": "cpp",
-        "c_io.h": "c"
+        "c_io.h": "c",
+        "s_io.h": "c"
     }
 }

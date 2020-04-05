@@ -64,7 +64,7 @@ int login(char*clientName)
             return 0;
         }else if(ret_Pack.msg_kind==MSG_FAIL){
             // printf("%s",ret_Pack.buf);
-            if(exitRequest(&exit_Pack,cfd,clientName))
+            if(exitRequest(&exit_Pack,cfd))
                 return -2;
             else
                 continue;
@@ -78,26 +78,33 @@ int login(char*clientName)
 int main()
 {
     cfd=connect_init();
+    menu();
     char clientName[NAMESIZE];
-    int ret=login(clientName);
-    if(ret==-1){
-        puts("系统出错啦！");
-        exit(EXIT_FAILURE);
-    }else if(ret ==-2){
-        puts("bye");
-        exit(EXIT_SUCCESS);
+    int choice=menu();
+    if(choice==1){
+        int ret=login(clientName);
+        if(ret==-1){
+            puts("系统出错啦！");
+            exit(EXIT_FAILURE);
+        }else if(ret ==-2){
+            puts("bye");
+            exit(EXIT_SUCCESS);
 
-    }else{
-    printf("欢迎登录,%s\n",clientName);
-    pthread_t pid1,pid2;
-    
-    pthread_create(&pid1,NULL,toRead,(void*)(clientName));
-    pthread_create(&pid2,NULL,toWrite,(void*)(clientName));
-    pthread_detach(pid1);
-    pthread_detach(pid2);
-    while(1);
-    // pthread_join(pid1,NULL);
-    // pthread_join(pid2,NULL);
-    close(cfd);
+        }else{
+        printf("欢迎登录,%s\n",clientName);
+        pthread_t pid1,pid2;
+        
+        pthread_create(&pid1,NULL,toRead,(void*)(clientName));
+        pthread_create(&pid2,NULL,toWrite,(void*)(clientName));
+        pthread_detach(pid1);
+        pthread_detach(pid2);
+        while(1);
+        // pthread_join(pid1,NULL);
+        // pthread_join(pid2,NULL);
+        close(cfd);
+        }
+    }else if(choice==3){
+        PACK exitPack;
+        if(exitRequest(&exitPack,cfd)){exit(EXIT_SUCCESS);}
     }
 }

@@ -26,7 +26,7 @@
 #include<fstream>
 // #include"head.h"
 using namespace std;
-#define CONFIGTXT "/home/adl/桌面/linux/小组任务/mytouch.txt"
+#define CONFIGTXT "/home/adl/桌面/linux/小组任务/mytouch_dir/mytouch.txt"
 void mytouch(char*writeFileName,string&configFileName)
 {
     string line;
@@ -53,7 +53,7 @@ int main(int argc,char**argv)
     }else if(argc==2){
         mytouch(argv[1],configtxt);
     }else if(argc==3){
-        configtxt=argv[3];
+        configtxt=argv[2];
         mytouch(argv[1],configtxt);
     }
     return 0;   

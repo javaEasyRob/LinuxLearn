@@ -29,6 +29,6 @@ void readPack(int cfd,PACK *pack);
 void privateChat(PACK*send_pack,int cfd,char*packSenderName);
 void groupChat(PACK*send_pack,int cfd,char*packSenderName);
 void loginConfirmation(PACK*login_Pack,PACK*ret_Pack,int cfd);
-int exitRequest(PACK*exit_Pack,int cfd,char*packSenderName);
+int exitRequest(PACK*exit_Pack,int cfd/*,char*packSenderName*/);
 int connect_init();
 #endif

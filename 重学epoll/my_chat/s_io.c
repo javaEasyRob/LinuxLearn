@@ -1,7 +1,8 @@
 #include"s_io.h"
-
+#include"load_person_store.h"
+extern Person personList[MAXPEO];
 int g_efd=-1;
-Person personList[PEONUM]={{{"adl","adl"},-1},{{"hzn","hzn"},-1},{{"sad","sad"},-1}};
+// Person personList[PEONUM]={{{"adl","adl"},-1},{{"hzn","hzn"},-1},{{"sad","sad"},-1}};
 struct myevent_s my_events[MAX_EVENTS+1];
 
 int ServerRetPack(int cfd,PACK*pack,char*retbuf,int msg_kind)

@@ -44,14 +44,14 @@ typedef struct myevent_s{
 
 }myevent_s;
 
-typedef struct personinfo{
-    char name[NAMESIZE];
-    char passwd[PWDSIZE];
-}PersonInfo;
-typedef struct Person{
-    PersonInfo infoList;
-    int fd;
-}Person;
+// typedef struct personinfo{
+//     char name[NAMESIZE];
+//     char passwd[PWDSIZE];
+// }PersonInfo;
+// typedef struct Person{
+//     PersonInfo infoList;
+//     int fd;
+// }Person;
 
 int findPersonName(const char*name);
 void initlistensocket(int efd,short port);
