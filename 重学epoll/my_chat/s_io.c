@@ -15,6 +15,7 @@ int ServerRetPack(int cfd,PACK*pack,char*retbuf,int msg_kind)
 }
 int ServerRecvPack(PACK*pack,struct myevent_s*ptr)
 {
+    char buf[BUFSIZ];
     int cfd=ptr->fd;
     int ret=-1;
     int ffd=-1;
@@ -35,7 +36,8 @@ int ServerRecvPack(PACK*pack,struct myevent_s*ptr)
                 int ret2=checkAccount(pack->packSender,pack->buf);
                 // printf("%d\n",ret2);
                 if(ret2>=0){
-                    int ret3=ServerRetPack(cfd,&retPack,"登录成功",MSG_ACK);
+                    sprintf(buf,pack->packSender," welcome");
+                    int ret3=ServerRetPack(cfd,&retPack,buf,MSG_ACK);
                     if(ret3==-1){
                         fprintf(stderr,"发送失败");
                         return -3;

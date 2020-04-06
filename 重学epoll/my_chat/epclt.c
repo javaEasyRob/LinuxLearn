@@ -46,6 +46,7 @@ void*toWrite(void*arg)
             case '2':
                 groupChat(&send_pack,cfd,packSenderName);
             default:
+                puts("输入错误,请重新输入");
                 break;
         }
     } 
@@ -78,7 +79,6 @@ int login(char*clientName)
 int main()
 {
     cfd=connect_init();
-    menu();
     char clientName[NAMESIZE];
     int choice=menu();
     if(choice==1){
@@ -106,5 +106,7 @@ int main()
     }else if(choice==3){
         PACK exitPack;
         if(exitRequest(&exitPack,cfd)){exit(EXIT_SUCCESS);}
+    }else if(choice==2){
+        PACK re
     }
 }

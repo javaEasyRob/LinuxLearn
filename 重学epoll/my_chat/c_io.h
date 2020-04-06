@@ -3,7 +3,7 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include<errno.h>
-
+#include<ctype.h>
 #define MSG_EXIT 0
 #define MSG_ACK 1
 #define MSG_CNT  2
@@ -24,11 +24,21 @@ typedef struct PACK{
     char packRecver[NAMESIZE];
     char buf[BUFSIZ];
 }PACK;
-void sendPack(int cfd,PACK *pack);
-void readPack(int cfd,PACK *pack);
-void privateChat(PACK*send_pack,int cfd,char*packSenderName);
-void groupChat(PACK*send_pack,int cfd,char*packSenderName);
-void loginConfirmation(PACK*login_Pack,PACK*ret_Pack,int cfd);
-int exitRequest(PACK*exit_Pack,int cfd/*,char*packSenderName*/);
+void*toRead(void*arg);
+void*toWrite(void*arg);
+void welcome();
+
+int login();
+int logon();
+void return_exit();
+
+void sendPack(PACK *pack);
+void readPack(PACK *pack);
+void privateChat();
+void groupChat();
+int loginConfirmation();
+int exitRequest();
 int connect_init();
+void welcome();
+
 #endif

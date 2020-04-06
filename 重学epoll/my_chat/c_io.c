@@ -1,6 +1,27 @@
 #include"c_io.h"
 #include"head.h"
 
+extern int cfd;
+char GlobleName[NAMESIZE];
+void return_exit()
+{
+    PACK exitPack;
+    if(exitRequest(&exitPack,cfd)){exit(EXIT_SUCCESS);}
+    else return;
+}
+void welcome()
+{
+    pthread_t pid1,pid2;
+    
+    pthread_create(&pid1,NULL,toRead,NULL);
+    pthread_create(&pid2,NULL,toWrite,NULL);
+    pthread_detach(pid1);
+    pthread_detach(pid2);
+    while(1);
+    // pthread_join(pid1,NULL);
+    // pthread_join(pid2,NULL);
+    close(cfd);
+}
 int connect_init()
 {
     int cfd=Socket(AF_INET,SOCK_STREAM,0);
@@ -13,26 +34,68 @@ int connect_init()
     puts("connect correct\n");
     return cfd ;
 }
-
-void sendPack(int cfd,PACK *pack)
+void*toRead(void*arg)
 {
-    int sendlen;
-    if((sendlen=Send(cfd,pack,sizeof(*pack),0))==-1){
-        
-        puts("粗错了");
+    PACK recv_pack;
+    while(1){
+        readPack(&recv_pack);
+    }
+}
+void*toWrite(void*arg)
+{
+    while(1){
+        puts("1---私聊\t2---群发");
+        int ch;
+        int ret=scanf("%d",&ch);
+        while(getchar()!='\n');
+        if(ret!=1||ch<1||ch>2){
+            puts("输入错误,请重新输入");
+            continue;
+        }
+        switch (ch){
+            case '1':
+                privateChat();            
+                break;
+            case '2':
+                groupChat();
+            default:
+                puts("出错了");
+                break;
+        }
+    } 
+    pthread_exit(NULL);
+}
+int logon(){}
+int login()
+{
+    while(1){
+        int ans=loginConfirmation();
+        if(ans==0)welcome();
+        if(ans==-2){
+            puts("发来了错误类型!");
+            puts("bye");
+            exit(EXIT_FAILURE);
+        }else if(ans==-1){
+            if(exitRequest()==0){
+                puts("bye");
+                exit(EXIT_SUCCESS);
+            }else continue;
+        }
+    }
+}
+
+void sendPack(PACK *pack)
+{
+    int sendlen=Send(cfd,pack,sizeof(*pack),0);
+    if(sendlen==-1){
         close(cfd);
         printf("send[fd=%d] error[%d]:%s\n", cfd, errno, strerror(errno));
-        // pthread_exit(NULL);
         exit(EXIT_FAILURE);
-    }   
-    // Recv(cfd,pack,sizeof(*pack),0);
-    // printf("%d",sendlen);
-    // printf("%s",pack->packSender);
-    // printf("%s",pack->buf);
-    // printf("%s",pack->packSender);
-    
+    }else{
+        return;
+    } 
 }
-void readPack(int cfd,PACK *pack)
+void readPack(PACK *pack)
 {
     int ret=Recv(cfd,pack,sizeof(*pack),0);
         if(ret==0){
@@ -40,7 +103,6 @@ void readPack(int cfd,PACK *pack)
             puts("服务器挂了");
             exit(EXIT_FAILURE);
         }else if(ret==-1){
-            puts("粗错了");
             close(cfd);
             printf("recv[fd=%d] error[%d]:%s\n", cfd, errno, strerror(errno));
             exit(EXIT_FAILURE);
@@ -51,43 +113,54 @@ void readPack(int cfd,PACK *pack)
                 printf("%s\n",pack->buf);
         }
 }
-void privateChat(PACK*send_Pack,int cfd,char*packSenderName)
-{
-    send_Pack->msg_kind=MSG_CNT;
+void privateChat()
+{  
+    PACK send_Pack;
+    strcpy(send_Pack.packSender,GlobleName);
+    send_Pack.msg_kind=MSG_CNT;
     printf("发送给:");
-    s_gets(send_Pack->packRecver,NAMESIZE);//后续有列表了用数字
-    printf("[输入框]%s:",packSenderName);        
-    s_gets(send_Pack->buf,BUFSIZ);
-    sendPack(cfd,send_Pack);
+    s_gets(send_Pack.packRecver,NAMESIZE);//后续有列表了用数字
+    printf("[输入框]%s:",GlobleName);        
+    s_gets(send_Pack.buf,BUFSIZ);
+    sendPack(&send_Pack);
 }
-void groupChat(PACK*send_Pack,int cfd,char*packSenderName)
-{
-    send_Pack->msg_kind=MSG_BROADCAST;
-    printf("[输入框]%s:",packSenderName);        
-    s_gets(send_Pack->buf,BUFSIZ);
-    sendPack(cfd,send_Pack);
+void groupChat()
+{   
+    PACK send_Pack;
+    strcpy(send_Pack.packSender,GlobleName);
+    send_Pack.msg_kind=MSG_BROADCAST;
+    printf("[输入框]%s:",GlobleName);        
+    s_gets(send_Pack.buf,BUFSIZ);
+    sendPack(&send_Pack);
 }
-void loginConfirmation(PACK*login_Pack,PACK*ret_Pack,int cfd)
+int loginConfirmation()
 {
-    login_Pack->msg_kind=MSG_LOGIN;
+    PACK login_Pack,ret_Pack;
+    login_Pack.msg_kind=MSG_LOGIN;
     printf("姓名:");
-    s_gets(login_Pack->packSender,NAMESIZE);
+    s_gets(login_Pack.packSender,NAMESIZE);
     printf("密码:");
-    s_gets(login_Pack->buf,PWDSIZE);
-    sendPack(cfd,login_Pack);
-    readPack(cfd,ret_Pack);         
-}
-int exitRequest(PACK*exit_Pack,int cfd/*,char*packSenderName*/)
-{
-    puts("你要退出吗?");
-    char choice[5];
-    s_gets(choice,5);
-    if(!strcmp(choice,EXIT)||!strcmp(choice,"quit")||!strcmp(choice,"y")){         
-        exit_Pack->msg_kind=MSG_EXIT;
-        // strcpy(exit_Pack->packSender,packSenderName);
-        sendPack(cfd,exit_Pack);
-        close(cfd);
-        return 1;
+    s_gets(login_Pack.buf,PWDSIZE);
+    sendPack(&login_Pack);
+    readPack(&ret_Pack);     
+    if(ret_Pack.msg_kind==MSG_FAIL)return -1;
+    if(ret_Pack.msg_kind==MSG_ACK){
+        strcpy(GlobleName,login_Pack.packSender);
+        return 0;    
     }
-    return 0;
+    else return -2;
+}
+int exitRequest()
+{   
+    PACK exit_Pack;
+    puts("你要退出吗?");
+    char ch= toupper(getchar());
+    while(getchar()!='\n')
+        continue;
+    if(ch=='Y'){
+        exit_Pack.msg_kind=MSG_EXIT;
+        sendPack(&exit_Pack);
+        close(cfd);
+        return 0;
+    }else return 1;
 }
